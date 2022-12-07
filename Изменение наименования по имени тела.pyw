@@ -7,10 +7,11 @@
 #-------------------------------------------------------------------------------
 
 title = "Изменение наименования по имени тела"
-ver = "v0.1.0.0"
+ver = "v0.2.0.0"
 
 #------------------------------Настройки!---------------------------------------
 recursive = False # рекурсивное (дет. внутри позсборок) переименование (True - да, False - нет)
+name_body = ["Тело"] # перечисление наименования тел дет. которые не будут переименовываться, пример: ["Тело", "тело", "Кот"]
 #-------------------------------------------------------------------------------
 
 def KompasAPI(): # подключение API компаса
@@ -98,14 +99,31 @@ def Kompas_message(text): # сообщение в окне КОМПАСа есл
 
 def Main_Assembly(): # переименование деталей из сборки и её подсборок
 
+    global score # значение делаем глобальным
+
     iKompasDocument3D = KompasAPI7.IKompasDocument3D(iKompasDocument) # интерфейс документов-моделей
     iPart7 = iKompasDocument3D.TopPart # интерфейс компонента 3D документа (сам документ)
 
     if iPart7.Detail: # если дет.
 
+        iName = iPart7.Name # наименование дет.
+
         iFeature7 = KompasAPI7.IFeature7(iPart7) # интерфейс объекта Дерева построения
-        iPart7.Name = iFeature7.ResultBodies.Name # имя компонент
-        iPart7.Update() # применить наименование
+        iName_body = iFeature7.ResultBodies.Name # имя тела дет.
+
+        for n in name_body: # перебор всех наименований
+            print(n)
+            if iName_body.find(n) != -1: # если найдено совпадение
+                MK = False # не переименовываем
+                break # прекращаем цикл
+
+        else: # если цикл закончился
+            MK = True # переименовываем
+
+        if iName != iName_body and MK: # если наименование дет. и имя тела дет. разные и нет неправильных названий
+            iPart7.Name = iFeature7.ResultBodies.Name # имя компонент
+            iPart7.Update() # применить наименование
+            score += 1 # добавляем счёт обработаных дет.
 
     else: # если это СБ
 
@@ -136,9 +154,17 @@ def Collect_Sources(iPart7): # рекурсивный сбор дет. и СБ
                             iSourceName = iSourcePart7Params.SourceName # наименование дет.
 
                             iFeature7 = KompasAPI7.IFeature7(iPart7) # интерфейс объекта Дерева построения
-                            iName = iFeature7.ResultBodies.Name # имя тела дет.
+                            iName_body = iFeature7.ResultBodies.Name # имя тела дет.
 
-                            if iSourceName != iName: # если наименование дет. и имя тела дет. разные
+                            for n in name_body: # перебор всех наименований
+                                if iName_body.find(n) != -1: # если найдено совпадение
+                                    MK = False # не переименовываем
+                                    break # прекращаем цикл
+
+                            else: # если цикл закончился
+                                MK = True # переименовываем
+
+                            if iSourceName != iName_body and MK: # если наименование дет. и имя тела дет. разные и нет неправильных названий
 
                                 iSourcePart7Params.SourceName = iFeature7.ResultBodies.Name # записываем имя компонента в источнике
 
