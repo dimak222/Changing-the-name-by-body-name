@@ -7,12 +7,15 @@
 #-------------------------------------------------------------------------------
 
 title = "Изменение наименования по имени тела"
-ver = "v0.2.1.0"
+ver = "v0.3.0.0"
 
 #------------------------------Настройки!---------------------------------------
 recursive = False # рекурсивное (дет. внутри позсборок) переименование (True - да, False - нет)
 Local_detail = True # обрабатывать локальные детали (True - да, False - нет)
-name_body = ["Тело"] # перечисление наименования тел дет. которые не будут переименовываться, пример: ["Тело", "тело", "Кот"]
+No_MK = [11008, 11082, 11093, 11128, 11257, 11242, 11251, 11259] # перечень признаков что это не МК (см. ksObjectUserObject3D)
+                                                                 # 11006 - эскиз; 11008 - элемент выдавливания; 11082 - массив по концентрической сетке; 11093 - зеркальный массив;
+                                                                 # 11128 - операция вращения; 11200 - смещенная плоскость; 11210 - касательная плоскость; 11257 - фаска;
+                                                                 # 11242 - условное изображение резьбы; # 11251 - отверстие; 11259 - скругление;
 #-------------------------------------------------------------------------------
 
 def KompasAPI(): # подключение API компаса
@@ -107,26 +110,20 @@ def Main_Assembly(): # переименование деталей из сбор
 
     if iPart7.Detail: # если дет.
 
-        iName = iPart7.Name # наименование дет.
+        MK = Check_MK(iPart7) # определение МК
 
-        iModelContainer = KompasAPI7.IModelContainer(iPart7) # интерфейс контейнера трехмерных объектов
-        iObjects = iModelContainer.Objects(0)
+        if MK: # если это МК
 
-        iFeature7 = KompasAPI7.IFeature7(iPart7) # интерфейс объекта Дерева построения
-        iName_body = iFeature7.ResultBodies.Name # имя тела дет.
+            iName = iPart7.Name # наименование дет.
 
-        for n in name_body: # перебор всех наименований
-            if iName_body.find(n) != -1: # если найдено совпадение
-                MK = False # не переименовываем
-                break # прекращаем цикл
+            iFeature7 = KompasAPI7.IFeature7(iPart7) # интерфейс объекта Дерева построения
+            iName_body = iFeature7.ResultBodies.Name # имя тела дет.
 
-        else: # если цикл закончился
-            MK = True # переименовываем
+            if iName != iName_body: # если наименование дет. и имя тела дет. разные
 
-        if iName != iName_body and MK: # если наименование дет. и имя тела дет. разные и нет неправильных названий
-            iPart7.Name = iFeature7.ResultBodies.Name # имя компонент
-            iPart7.Update() # применить наименование
-            score += 1 # добавляем счёт обработаных дет.
+                iPart7.Name = iFeature7.ResultBodies.Name # имя компонент
+                iPart7.Update() # применить наименование
+                score += 1 # добавляем счёт обработаных дет.
 
     else: # если это СБ
 
@@ -136,31 +133,57 @@ def Main_Assembly(): # переименование деталей из сбор
             iKompasDocument3D.RebuildDocument() # перестроить СБ
             iKompasDocument3D.Save() # сохранить изменения
 
+def Check_MK(iPart7): # определение МК
+
+    iModelContainer = KompasAPI7.IModelContainer(iPart7) # интерфейс контейнера трехмерных объектов
+    iObjects = iModelContainer.Objects(0) # трехмерные объекты, входящие в состав данного объекта (объекты дерева построения)
+
+    MK = 0 # количество МК элементов
+
+    for iObject in iObjects: # перебор всех объектов
+
+        if iObject.Type == 11211: # если найдена вставка с библиотеки МК
+            MK += 1 # считаем количество вставок
+
+            if MK == 2: # если вставок уже 2
+                MK = False # не считаем это МК
+                break # прерываем цикл
+
+        if iObject.Type in (No_MK): # если в дереве построения есть признак
+            MK = False  # не считаем это МК
+            break # прерываем цикл
+
+    else: # если цикл не прервался
+
+        if MK == 0: # если не найдены втавка
+            MK = False  # не считаем это МК
+
+        else: # найдена одна вставка
+            MK = True # это МК
+
+    return MK # возвращаем значение
+
 def Collect_Sources(iPart7): # рекурсивное переименование деталей дет. из подсборок
 
     def Rename_detail(iPart7): # переименование дет.
 
         global score # значение делаем глобальным
 
-        iSourcePart7Params = KompasAPI7.ISourcePart7Params(iPart7) # интерфейс параметров компонента в источнике
-        iSourceName = iSourcePart7Params.SourceName # наименование дет.
+        MK = Check_MK(iPart7) # определение МК
 
-        iFeature7 = KompasAPI7.IFeature7(iPart7) # интерфейс объекта Дерева построения
-        iName_body = iFeature7.ResultBodies.Name # имя тела дет.
+        if MK: # если это МК
 
-        for n in name_body: # перебор всех наименований
-            if iName_body.find(n) != -1: # если найдено совпадение
-                MK = False # не переименовываем
-                break # прекращаем цикл
+            iSourcePart7Params = KompasAPI7.ISourcePart7Params(iPart7) # интерфейс параметров компонента в источнике
+            iSourceName = iSourcePart7Params.SourceName # наименование дет.
 
-        else: # если цикл закончился
-            MK = True # переименовываем
+            iFeature7 = KompasAPI7.IFeature7(iPart7) # интерфейс объекта Дерева построения
+            iName_body = iFeature7.ResultBodies.Name # имя тела дет.
 
-        if iSourceName != iName_body and MK: # если наименование дет. и имя тела дет. разные и нет неправильных названий
+            if iSourceName != iName_body and MK: # если наименование дет. и имя тела дет. разные и нет неправильных названий
 
-            iSourcePart7Params.SourceName = iFeature7.ResultBodies.Name # записываем имя компонента в источнике
+                iSourcePart7Params.SourceName = iFeature7.ResultBodies.Name # записываем имя компонента в источнике
 
-            score += 1 # добавляем счёт обработаных дет.
+                score += 1 # добавляем счёт обработаных дет.
 
     iPartsEx = iPart7.PartsEx(1) # список компонентов, включённыхв расчёт (0 - все компоненты (включая копии из операций копирования); 1 - первые экземпляры вставок компонентов (ksPart7CollectionTypeEnum))
 
@@ -172,14 +195,10 @@ def Collect_Sources(iPart7): # рекурсивное переименовани
 
                 if iPart7.IsLayoutGeometry == False: # если это не компоновочная геометрия
 
-                    if iPart7.IsBillet == False: # если это не вставка заготовки детали
+                    if iPart7.IsBillet == False: # если это не вставка заготовки дет.
 
-                        if Local_detail: # обрабатывать локальные детали
+                        if iPart7.IsLocal == False or Local_detail: # если это не локальная дет. или обрабатывать локальные детали включена
                             Rename_detail(iPart7) # переименование дет.
-
-                        else: # не обрабатывать локальные детали
-                            if iPart7.IsLocal == False: # если это не локальная деталь
-                                Rename_detail(iPart7) # переименование дет.
 
         else: # если это СБ
             if recursive: # если включён рекурсивное переименоване
@@ -192,4 +211,7 @@ KompasAPI() # подключение API компаса
 
 Main_Assembly() # переименование деталей из сборки и её подсборок
 
-Kompas_message("Переименовано дет.: " + str(score)) # сообщение Kompas_message("Переименовано ltn/^ Э + ыек(ысщку)) № cjj,otybt d jryt RJVGFCf tckb jy jnrhsnв окне КОМПАСа если он открыт
+if score == 0: # если нет переименованых дет.
+    Kompas_message("Нет переименованых дет.") # сообщение окне КОМПАСа если он открыт
+else: # если есть переименованые дет.
+    Kompas_message("Переименовано дет.: " + str(score)) # сообщение окне КОМПАСа если он открыт
