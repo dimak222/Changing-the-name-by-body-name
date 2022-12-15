@@ -7,7 +7,7 @@
 #-------------------------------------------------------------------------------
 
 title = "Изменение наименования по имени тела"
-ver = "v0.4.0.0b"
+ver = "v0.4.1.0"
 
 #------------------------------Настройки!---------------------------------------
 recursive = False # рекурсивное (дет. внутри позсборок) переименование (True - да, False - нет)
@@ -140,7 +140,6 @@ def Main_Assembly(): # переименование деталей из сбор
         Collect_Sources(iPart7) # рекурсивный сбор дет. и СБ
 
         if score_detail != 0 or score_MK != 0: # если был переименована хоть одна дет.
-            iKompasDocument3D = KompasAPI7.IKompasDocument3D(iKompasDocument) # интерфейс документов-моделей
             iKompasDocument3D.RebuildDocument() # перестроить СБ
             iKompasDocument3D.Save() # сохранить изменения
 
@@ -192,6 +191,11 @@ def Rename_MK(iPart7): # переименование дет.
         iPart7.Update() # применить наименование
 
         score_MK += 1 # добавляем счёт обработаных дет.
+
+        return True # если было выполнено изменение
+
+    else: # нет изменений
+        return False # не было выполнено изменение
 
 def Сhange_properties_MK(iPart7): # изменить св-ва (значение формата, значение примечаний, значение массы, интерфейс формата, интерфейс примечания)
 
@@ -250,6 +254,11 @@ def Rename_detail(iPart7): # переименование МК в дет.
 
         score_detail += 1 # добавляем счёт обработаных дет.
 
+        return True # если было выполнено изменение
+
+    else: # нет изменений
+        return False # не было выполнено изменение
+
 def Сhange_properties(iPart7): # изменить св-ва МК в дет.
 
     import re # модуль регулярных выражений
@@ -299,10 +308,13 @@ def Collect_Sources(iPart7): # рекурсивное переименовани
                                 iKompasDocument3D = KompasAPI7.IKompasDocument3D(iKompasDocument) # интерфейс документов-моделей
                                 iPart7 = iKompasDocument3D.TopPart # интерфейс компонента 3D документа (сам документ)
 
-                                Rename_MK(iPart7) # переименование дет.
+                                if Rename_MK(iPart7): # переименование дет.
 
-                                iKompasDocument.Save() # iKompasDocument.Close(1) без iKompasDocument.Save() почему-то не работает
-                                iKompasDocument.Close(1) # 0 - закрыть документ без сохранения; 1 - закрыть документ, сохранив  изменения; 2 - выдать запрос на сохранение документа, если он изменен.
+                                    iKompasDocument.Save() # iKompasDocument.Close(1) без iKompasDocument.Save() почему-то не работает
+                                    iKompasDocument.Close(1) # 0 - закрыть документ без сохранения; 1 - закрыть документ, сохранив  изменения; 2 - выдать запрос на сохранение документа, если он изменен.
+
+                                else: # не было изменений
+                                    iKompasDocument.Close(0) # 0 - закрыть документ без сохранения; 1 - закрыть документ, сохранив  изменения; 2 - выдать запрос на сохранение документа, если он изменен.
 
                             elif MK == 2 and MK_to_detail: # если это МК переделанная в дет.
 
@@ -311,10 +323,13 @@ def Collect_Sources(iPart7): # рекурсивное переименовани
                                 iKompasDocument3D = KompasAPI7.IKompasDocument3D(iKompasDocument) # интерфейс документов-моделей
                                 iPart7 = iKompasDocument3D.TopPart # интерфейс компонента 3D документа (сам документ)
 
-                                Rename_detail(iPart7) # переименование МК в дет.
+                                if Rename_detail(iPart7): # переименование МК в дет.
 
-                                iKompasDocument.Save() # iKompasDocument.Close(1) без iKompasDocument.Save() почему-то не работает
-                                iKompasDocument.Close(1) # 0 - закрыть документ без сохранения; 1 - закрыть документ, сохранив  изменения; 2 - выдать запрос на сохранение документа, если он изменен.
+                                    iKompasDocument.Save() # iKompasDocument.Close(1) без iKompasDocument.Save() почему-то не работает
+                                    iKompasDocument.Close(1) # 0 - закрыть документ без сохранения; 1 - закрыть документ, сохранив  изменения; 2 - выдать запрос на сохранение документа, если он изменен.
+
+                                else: # не было изменений
+                                    iKompasDocument.Close(0) # 0 - закрыть документ без сохранения; 1 - закрыть документ, сохранив  изменения; 2 - выдать запрос на сохранение документа, если он изменен.
 
         else: # если это СБ
             if recursive: # если включён рекурсивное переименоване
